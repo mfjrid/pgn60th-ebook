@@ -1,0 +1,46 @@
+body {
+    background: #000;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#video-container {
+    position: relative;
+    width: 960px;
+    height: 540px;
+    background: #000;
+    touch-action: pan-y;
+}
+
+video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 1;
+    /* transition: opacity 0.5s ease; */
+}
+
+video.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.controls {
+    margin-top: 10px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    font-size: 16px;
+    cursor: pointer;
+}
