@@ -5,16 +5,44 @@
     <meta charset="UTF-8">
     <title>PGN Flipbook</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <script>
+        // Anti Inspect Element
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (e.key === 'F12' ||
+                (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                alert('Akses dilarang');
+            }
+        });
+
+        // Deteksi DevTools
+        function detectDevTools() {
+            let devtools = /./;
+            devtools.toString = function () {
+                document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:20%">Akses tidak diizinkan</h1>';
+                window.location.reload();
+                return '';
+            };
+            console.log('%c', devtools);
+        }
+
+        // setInterval(detectDevTools, 1000);
+    </script>
 </head>
 
 <body>
     <div id="video-container">
+        <div class="click-area left-click-area"></div>
         <video id="videoA" autoplay muted playsinline></video>
         <video id="videoB" autoplay muted playsinline class="hidden"></video>
-    </div>
-    <div class="controls">
-        <button onclick="goPrev()">Prev</button>
-        <button onclick="goNext()">Next</button>
+        <div class="click-area right-click-area"></div>
     </div>
 
     <script src="assets/js/script.js"></script>

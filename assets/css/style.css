@@ -16,6 +16,7 @@ body {
     height: 540px;
     background: #000;
     touch-action: pan-y;
+    user-select: none;
 }
 
 video {
@@ -26,12 +27,11 @@ video {
     height: 100%;
     object-fit: cover;
     opacity: 1;
-    /* transition: opacity 0.5s ease; */
+    pointer-events: none;
 }
 
 video.hidden {
     opacity: 0;
-    pointer-events: none;
 }
 
 .controls {
@@ -43,4 +43,21 @@ button {
     margin: 0 10px;
     font-size: 16px;
     cursor: pointer;
+}
+
+.click-area {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 30%;
+    z-index: 10;
+    cursor: pointer;
+}
+
+.left-click-area {
+    left: 0;
+}
+
+.right-click-area {
+    right: 0;
 }
