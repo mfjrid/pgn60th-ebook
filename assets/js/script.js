@@ -85,3 +85,50 @@ videoContainer.addEventListener('touchend', (e) => {
         }
     }
 });
+
+
+
+// Anti Inspect Element
+document.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+});
+
+document.addEventListener('keydown', function (e) {
+    // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+        (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+        (e.ctrlKey && e.key === 'U')) {
+        e.preventDefault();
+        alert('Akses dilarang');
+    }
+});
+
+// Deteksi DevTools
+function detectDevTools() {
+    let devtools = /./;
+    devtools.toString = function () {
+        document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:20%">Akses tidak diizinkan</h1>';
+        window.location.reload();
+        return '';
+    };
+    console.log('%c', devtools);
+}
+
+// setInterval(detectDevTools, 1000);
+
+
+(function () {
+    'use strict';
+
+    // Cegah pengguna mengubah fungsi-fungsi penting
+    Object.freeze(loadVideo);
+    Object.freeze(goPrev);
+    Object.freeze(goNext);
+
+    // Cegah pengguna mengubah array videos
+    Object.freeze(videos);
+    for (let i = 0; i < videos.length; i++) {
+        Object.freeze(videos[i]);
+    }
+})();
