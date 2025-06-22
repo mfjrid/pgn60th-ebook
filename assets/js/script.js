@@ -1,19 +1,19 @@
 const videos = [
     {
-        normal: 'assets/videos/slide1.mp4',
-        reverse: 'assets/videos/slide1.mp4'
+        normal: 'stream.php?file=slide1.mp4',
+        reverse: 'stream.php?file=slide1.mp4'
     },
     {
-        normal: 'assets/videos/slide2.mp4',
-        reverse: 'assets/videos/slide2_reverse.mp4'
+        normal: 'stream.php?file=slide2.mp4',
+        reverse: 'stream.php?file=slide2_reverse.mp4'
     },
     {
-        normal: 'assets/videos/slide3.mp4',
-        reverse: 'assets/videos/slide3_reverse.mp4'
+        normal: 'stream.php?file=slide3.mp4',
+        reverse: 'stream.php?file=slide3_reverse.mp4'
     },
     {
-        normal: 'assets/videos/slide4.mp4',
-        reverse: 'assets/videos/slide4_reverse.mp4'
+        normal: 'stream.php?file=slide4.mp4',
+        reverse: 'stream.php?file=slide4_reverse.mp4'
     }
 ];
 

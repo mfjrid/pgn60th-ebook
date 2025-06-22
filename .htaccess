@@ -1,0 +1,22 @@
+# Izinkan akses ke file video MP4
+<FilesMatch "\.(mp4)$">
+    ForceType video/mp4
+    Header set Content-Type video/mp4
+    Header set Access-Control-Allow-Origin "*"
+</FilesMatch>
+
+# Jika mod_security aktif, nonaktifkan untuk file video
+<IfModule mod_security.c>
+    SecFilterEngine Off
+    SecFilterScanPOST Off
+</IfModule>
+
+# CORS (jika video diakses dari domain lain)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(mp4)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
+AddType video/mp4 .mp4
+
