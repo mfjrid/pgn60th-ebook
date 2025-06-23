@@ -20,6 +20,11 @@
                 e.preventDefault();
                 alert('Akses dilarang');
             }
+            // Biarkan F11 untuk fullscreen
+            if (e.key === 'F11') {
+                e.preventDefault();
+                enterFullscreen();
+            }
         });
 
         // Deteksi DevTools

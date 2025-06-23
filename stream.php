@@ -2,7 +2,7 @@
 
 // Generate allowed videos list dynamically
 $allowed_videos = [];
-for ($i = 0; $i <= 90; $i++) {
+for ($i = 0; $i <= 91; $i++) {
     $allowed_videos[] = "slide-{$i}.mp4";
     $allowed_videos[] = "slide_reverse-{$i}.mp4";
 }

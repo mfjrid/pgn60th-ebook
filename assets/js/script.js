@@ -1,4 +1,4 @@
-const videos = Array.from({ length: 90 }, (_, i) => {
+const videos = Array.from({ length: 91 }, (_, i) => {
     const slideNum = i + 1;
     return {
         normal: `stream.php?file=slide-${slideNum}.mp4`,
@@ -153,3 +153,55 @@ rightClickArea.addEventListener('click', (e) => {
         Object.freeze(videos[i]);
     }
 })();
+
+
+// Fungsi untuk masuk ke fullscreen
+function enterFullscreen() {
+    const element = document.documentElement;
+
+    if (element.requestFullscreen) {
+        element.requestFullscreen();
+    } else if (element.mozRequestFullScreen) { // Firefox
+        element.mozRequestFullScreen();
+    } else if (element.webkitRequestFullscreen) { // Chrome, Safari, Opera
+        element.webkitRequestFullscreen();
+    } else if (element.msRequestFullscreen) { // IE/Edge
+        element.msRequestFullscreen();
+    }
+}
+
+// Masuk ke fullscreen saat halaman dimuat
+document.addEventListener('DOMContentLoaded', () => {
+    enterFullscreen();
+});
+
+// Juga coba masuk fullscreen saat ada interaksi pengguna (beberapa browser memblokir fullscreen otomatis)
+videoContainer.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+        enterFullscreen();
+    }
+});
+
+// Tangani perubahan status fullscreen
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        enterFullscreen();
+    }
+});
+
+// Cek dukungan fullscreen
+function isFullscreenSupported() {
+    return document.fullscreenEnabled ||
+        document.webkitFullscreenEnabled ||
+        document.mozFullScreenEnabled ||
+        document.msFullscreenEnabled;
+}
+
+if (!isFullscreenSupported()) {
+    console.warn('Fullscreen tidak didukung oleh browser ini');
+    // Atur ukuran video ke ukuran layar
+    videoA.style.width = '100vw';
+    videoA.style.height = '100vh';
+    videoB.style.width = '100vw';
+    videoB.style.height = '100vh';
+}
