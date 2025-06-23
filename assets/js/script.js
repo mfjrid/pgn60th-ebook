@@ -1,21 +1,10 @@
-const videos = [
-    {
-        normal: 'stream.php?file=slide1.mp4',
-        reverse: 'stream.php?file=slide1.mp4'
-    },
-    {
-        normal: 'stream.php?file=slide2.mp4',
-        reverse: 'stream.php?file=slide2_reverse.mp4'
-    },
-    {
-        normal: 'stream.php?file=slide3.mp4',
-        reverse: 'stream.php?file=slide3_reverse.mp4'
-    },
-    {
-        normal: 'stream.php?file=slide4.mp4',
-        reverse: 'stream.php?file=slide4_reverse.mp4'
-    }
-];
+const videos = Array.from({ length: 90 }, (_, i) => {
+    const slideNum = i + 1;
+    return {
+        normal: `stream.php?file=slide-${slideNum}.mp4`,
+        reverse: `stream.php?file=slide_reverse-${slideNum}.mp4`
+    };
+});
 
 let currentIndex = 0;
 let showingA = true;
