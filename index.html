@@ -4,7 +4,225 @@
 <head>
     <meta charset="UTF-8">
     <title>PGN Flipbook</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+
+        #video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .click-area {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 20%;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .left-click-area {
+            left: 0;
+        }
+
+        .right-click-area {
+            right: 0;
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .controls.show {
+            opacity: 1;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .control-btn:disabled:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: none;
+        }
+
+        /* Page indicator */
+        .page-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Magnifier */
+        .magnifier {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(2px);
+            display: none;
+            overflow: hidden;
+        }
+
+        .magnifier-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        /* Auto-hide controls */
+        .auto-hide {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .auto-hide.show {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 10px;
+                padding: 8px 15px;
+                gap: 8px;
+            }
+
+            .control-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .zoom-controls {
+                top: 10px;
+                left: 10px;
+            }
+
+            .zoom-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            .page-indicator {
+                top: 10px;
+                right: 10px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
     <script>
         // Anti Inspect Element
         document.addEventListener('contextmenu', function (e) {
@@ -20,29 +238,7 @@
                 e.preventDefault();
                 alert('Akses dilarang');
             }
-            // Biarkan F11 untuk fullscreen
-            if (e.key === 'F11') {
-                e.preventDefault();
-                enterFullscreen();
-            }
         });
-
-        // Deteksi DevTools
-        function detectDevTools() {
-            let devtools = /./;
-            devtools.toString = function () {
-                document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:20%">Akses tidak diizinkan</h1>';
-                window.location.reload();
-                return '';
-            };
-            console.log('%c', devtools);
-        }
-
-        // setInterval(detectDevTools, 1000);
-
-        // Zoom via scroll & pinch
-
-        // Arrow left right
     </script>
 </head>
 
@@ -52,9 +248,386 @@
         <video id="videoA" autoplay muted playsinline></video>
         <video id="videoB" autoplay muted playsinline class="hidden"></video>
         <div class="click-area right-click-area"></div>
+        <div class="magnifier" id="magnifier">
+            <div class="magnifier-content" id="magnifier-content"></div>
+        </div>
     </div>
 
-    <script src="assets/js/script.js"></script>
+    <!-- Page Indicator -->
+    <div class="page-indicator" id="page-indicator">1 / 91</div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls auto-hide" id="zoom-controls">
+        <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+        <button class="zoom-btn" id="zoom-reset" title="Reset Zoom">⌂</button>
+    </div>
+
+    <!-- Main Controls -->
+    <div class="controls auto-hide" id="controls">
+        <button class="control-btn" id="prev-btn" title="Previous (←)">
+            ← Prev
+        </button>
+        <button class="control-btn" id="next-btn" title="Next (→)">
+            Next →
+        </button>
+        <button class="control-btn" id="fullscreen-btn" title="Fullscreen (F11)">
+            ⛶ Fullscreen
+        </button>
+        <button class="control-btn" id="magnifier-btn" title="Toggle Magnifier">
+            🔍 Magnifier
+        </button>
+    </div>
+
+    <script>
+        const videos = Array.from({ length: 91 }, (_, i) => {
+            const slideNum = i + 1;
+            return {
+                normal: `stream.php?file=slide-${slideNum}.mp4`,
+                reverse: `stream.php?file=slide_reverse-${slideNum}.mp4`
+            };
+        });
+
+        let currentIndex = 0;
+        let showingA = true;
+        let zoomLevel = 1;
+        let magnifierEnabled = false;
+        let controlsTimeout;
+
+        const videoA = document.getElementById('videoA');
+        const videoB = document.getElementById('videoB');
+        const videoContainer = document.getElementById('video-container');
+        const leftClickArea = document.querySelector('.left-click-area');
+        const rightClickArea = document.querySelector('.right-click-area');
+        const controls = document.getElementById('controls');
+        const zoomControls = document.getElementById('zoom-controls');
+        const pageIndicator = document.getElementById('page-indicator');
+        const magnifier = document.getElementById('magnifier');
+        const magnifierContent = document.getElementById('magnifier-content');
+
+        // Buttons
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const magnifierBtn = document.getElementById('magnifier-btn');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const zoomResetBtn = document.getElementById('zoom-reset');
+
+        // Tambahan proteksi
+        Object.defineProperty(document, 'oncontextmenu', {
+            get() { return null; },
+            set() { }
+        });
+
+        function loadVideo(index, isReverse = false) {
+            const currentVideo = showingA ? videoA : videoB;
+            const nextVideo = showingA ? videoB : videoA;
+
+            nextVideo.src = isReverse ? videos[index].reverse : videos[index].normal;
+            nextVideo.load();
+
+            nextVideo.onloadeddata = () => {
+                nextVideo.classList.remove('hidden');
+                nextVideo.play();
+                currentVideo.classList.add('hidden');
+                showingA = !showingA;
+                updatePageIndicator();
+                updateButtons();
+            };
+        }
+
+        function goPrev() {
+            if (currentIndex > 0) {
+                loadVideo(currentIndex, true);
+                currentIndex--;
+            }
+        }
+
+        function goNext() {
+            if (currentIndex < videos.length - 1) {
+                currentIndex++;
+                loadVideo(currentIndex, false);
+            }
+        }
+
+        function updatePageIndicator() {
+            pageIndicator.textContent = `${currentIndex + 1} / ${videos.length}`;
+        }
+
+        function updateButtons() {
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.disabled = currentIndex === videos.length - 1;
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel * 1.2, 3);
+            applyZoom();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel / 1.2, 0.5);
+            applyZoom();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const currentVideo = showingA ? videoA : videoB;
+            currentVideo.style.transform = `scale(${zoomLevel})`;
+        }
+
+        // Fullscreen function
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                enterFullscreen();
+            } else {
+                exitFullscreen();
+            }
+        }
+
+        function enterFullscreen() {
+            const element = document.documentElement;
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        }
+
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+
+        // Magnifier functions
+        function toggleMagnifier() {
+            magnifierEnabled = !magnifierEnabled;
+            magnifierBtn.textContent = magnifierEnabled ? '🔍 Magnifier ON' : '🔍 Magnifier';
+            magnifierBtn.style.background = magnifierEnabled ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)';
+
+            if (!magnifierEnabled) {
+                magnifier.style.display = 'none';
+            }
+        }
+
+        function updateMagnifier(e) {
+            if (!magnifierEnabled) return;
+
+            const rect = videoContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            magnifier.style.display = 'block';
+            magnifier.style.left = (x - 75) + 'px';
+            magnifier.style.top = (y - 75) + 'px';
+
+            const currentVideo = showingA ? videoA : videoB;
+            const videoRect = currentVideo.getBoundingClientRect();
+            const containerRect = videoContainer.getBoundingClientRect();
+
+            const videoX = ((x - (videoRect.left - containerRect.left)) / videoRect.width) * 100;
+            const videoY = ((y - (videoRect.top - containerRect.top)) / videoRect.height) * 100;
+
+            magnifierContent.style.backgroundImage = `url(${currentVideo.currentSrc || currentVideo.src})`;
+            magnifierContent.style.backgroundPosition = `${videoX}% ${videoY}%`;
+            magnifierContent.style.backgroundSize = '200%';
+        }
+
+        // Controls auto-hide
+        function showControls() {
+            controls.classList.add('show');
+            zoomControls.classList.add('show');
+
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                controls.classList.remove('show');
+                zoomControls.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize
+        videoA.src = videos[currentIndex].normal;
+        videoA.onloadeddata = () => {
+            videoA.play();
+            updatePageIndicator();
+            updateButtons();
+        };
+
+        // Event listeners
+        prevBtn.addEventListener('click', goPrev);
+        nextBtn.addEventListener('click', goNext);
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        magnifierBtn.addEventListener('click', toggleMagnifier);
+        zoomInBtn.addEventListener('click', zoomIn);
+        zoomOutBtn.addEventListener('click', zoomOut);
+        zoomResetBtn.addEventListener('click', resetZoom);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    goPrev();
+                    showControls();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    goNext();
+                    showControls();
+                    break;
+                case 'F11':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    zoomIn();
+                    showControls();
+                    break;
+                case '-':
+                    e.preventDefault();
+                    zoomOut();
+                    showControls();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    resetZoom();
+                    showControls();
+                    break;
+                case 'm':
+                case 'M':
+                    e.preventDefault();
+                    toggleMagnifier();
+                    showControls();
+                    break;
+            }
+        });
+
+        // Mouse/touch events for navigation
+        let startX = 0;
+        let isSwiping = false;
+        let isClick = true;
+        const SWIPE_THRESHOLD = 50;
+        const CLICK_THRESHOLD = 5;
+
+        function handleEnd(x) {
+            const deltaX = x - startX;
+            if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                isClick = false;
+                if (deltaX < 0) {
+                    goNext();
+                } else {
+                    goPrev();
+                }
+            }
+
+            setTimeout(() => {
+                isSwiping = false;
+                isClick = true;
+            }, 100);
+        }
+
+        // Touch events
+        videoContainer.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+            isClick = true;
+            showControls();
+        });
+
+        videoContainer.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+            if (Math.abs(e.touches[0].clientX - startX) > CLICK_THRESHOLD) {
+                isClick = false;
+            }
+            updateMagnifier(e.touches[0]);
+            e.preventDefault();
+        });
+
+        videoContainer.addEventListener('touchend', (e) => {
+            if (!isSwiping) return;
+            handleEnd(e.changedTouches[0].clientX);
+            magnifier.style.display = 'none';
+        });
+
+        // Mouse events
+        videoContainer.addEventListener('mousedown', (e) => {
+            startX = e.clientX;
+            isSwiping = true;
+            isClick = true;
+            showControls();
+        });
+
+        videoContainer.addEventListener('mousemove', (e) => {
+            if (!isSwiping) return;
+            if (Math.abs(e.clientX - startX) > CLICK_THRESHOLD) {
+                isClick = false;
+            }
+            updateMagnifier(e);
+            e.preventDefault();
+        });
+
+        videoContainer.addEventListener('mouseup', (e) => {
+            if (!isSwiping) return;
+            handleEnd(e.clientX);
+        });
+
+        videoContainer.addEventListener('mouseleave', () => {
+            isSwiping = false;
+            magnifier.style.display = 'none';
+        });
+
+        // Click areas
+        leftClickArea.addEventListener('click', (e) => {
+            if (isClick) {
+                goPrev();
+                showControls();
+            }
+        });
+
+        rightClickArea.addEventListener('click', (e) => {
+            if (isClick) {
+                goNext();
+                showControls();
+            }
+        });
+
+        // Show controls on mouse move
+        document.addEventListener('mousemove', showControls);
+        document.addEventListener('click', showControls);
+
+        // Initial controls show
+        showControls();
+
+        // Proteksi tambahan
+        (function () {
+            'use strict';
+            Object.freeze(loadVideo);
+            Object.freeze(goPrev);
+            Object.freeze(goNext);
+            Object.freeze(videos);
+            for (let i = 0; i < videos.length; i++) {
+                Object.freeze(videos[i]);
+            }
+        })();
+    </script>
 </body>
 
 </html>
