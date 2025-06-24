@@ -520,14 +520,31 @@
             }
         });
 
-        // Mouse/touch events for navigation
+        // Mouse hover events for magnifier
+        videoContainer.addEventListener('mouseenter', (e) => {
+            if (magnifierEnabled) {
+                updateMagnifier(e);
+            }
+        });
+
+        videoContainer.addEventListener('mousemove', (e) => {
+            if (magnifierEnabled) {
+                updateMagnifier(e);
+            }
+        });
+
+        videoContainer.addEventListener('mouseleave', () => {
+            magnifier.style.display = 'none';
+        });
+
+        // Touch events for navigation
         let startX = 0;
         let isSwiping = false;
         let isClick = true;
         const SWIPE_THRESHOLD = 50;
         const CLICK_THRESHOLD = 5;
 
-        function handleEnd(x) {
+        function handleTouchEnd(x) {
             const deltaX = x - startX;
             if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
                 isClick = false;
@@ -544,7 +561,6 @@
             }, 100);
         }
 
-        // Touch events
         videoContainer.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
             isSwiping = true;
@@ -557,41 +573,12 @@
             if (Math.abs(e.touches[0].clientX - startX) > CLICK_THRESHOLD) {
                 isClick = false;
             }
-            updateMagnifier(e.touches[0]);
             e.preventDefault();
         });
 
         videoContainer.addEventListener('touchend', (e) => {
             if (!isSwiping) return;
-            handleEnd(e.changedTouches[0].clientX);
-            magnifier.style.display = 'none';
-        });
-
-        // Mouse events
-        videoContainer.addEventListener('mousedown', (e) => {
-            startX = e.clientX;
-            isSwiping = true;
-            isClick = true;
-            showControls();
-        });
-
-        videoContainer.addEventListener('mousemove', (e) => {
-            if (!isSwiping) return;
-            if (Math.abs(e.clientX - startX) > CLICK_THRESHOLD) {
-                isClick = false;
-            }
-            updateMagnifier(e);
-            e.preventDefault();
-        });
-
-        videoContainer.addEventListener('mouseup', (e) => {
-            if (!isSwiping) return;
-            handleEnd(e.clientX);
-        });
-
-        videoContainer.addEventListener('mouseleave', () => {
-            isSwiping = false;
-            magnifier.style.display = 'none';
+            handleTouchEnd(e.changedTouches[0].clientX);
         });
 
         // Click areas
