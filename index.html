@@ -56,6 +56,82 @@
             right: 0;
         }
 
+        /* Loading Animation */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            backdrop-filter: blur(2px);
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Progress bar for loading */
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
         /* Controls */
         .controls {
             position: fixed;
@@ -89,25 +165,48 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            position: relative;
+            min-width: 80px;
+            justify-content: center;
         }
 
-        .control-btn:hover {
+        .control-btn:hover:not(:disabled) {
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
         }
 
-        .control-btn:active {
+        .control-btn:active:not(:disabled) {
             transform: translateY(0);
         }
 
         .control-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .control-btn:disabled:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
             transform: none;
+        }
+
+        /* Loading state for buttons */
+        .control-btn.loading {
+            opacity: 0.7;
+            cursor: wait;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
         }
 
         /* Page indicator */
@@ -122,6 +221,10 @@
             font-size: 14px;
             z-index: 100;
             backdrop-filter: blur(10px);
+        }
+
+        .page-indicator.loading {
+            animation: pulse 1.5s ease-in-out infinite;
         }
 
         /* Zoom controls */
@@ -191,6 +294,12 @@
             opacity: 1;
         }
 
+        /* Disabled click areas during loading */
+        .click-area.disabled {
+            pointer-events: none;
+            cursor: wait;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .controls {
@@ -202,6 +311,7 @@
             .control-btn {
                 padding: 8px 12px;
                 font-size: 12px;
+                min-width: 70px;
             }
 
             .zoom-controls {
@@ -220,6 +330,19 @@
                 right: 10px;
                 padding: 6px 12px;
                 font-size: 12px;
+            }
+
+            .loading-spinner {
+                width: 50px;
+                height: 50px;
+            }
+
+            .loading-text {
+                font-size: 14px;
+            }
+
+            .loading-progress {
+                width: 150px;
             }
         }
 
@@ -254,6 +377,17 @@
         <div class="click-area right-click-area"></div>
         <div class="magnifier" id="magnifier">
             <div class="magnifier-content" id="magnifier-content"></div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div style="text-align: center;">
+                <div class="loading-spinner"></div>
+                <div class="loading-text" id="loading-text">Memuat video...</div>
+                <div class="loading-progress">
+                    <div class="loading-progress-bar" id="loading-progress-bar"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -297,6 +431,7 @@
         let zoomLevel = 1;
         let magnifierEnabled = false;
         let controlsTimeout;
+        let isLoading = false;
 
         const videoA = document.getElementById('videoA');
         const videoB = document.getElementById('videoB');
@@ -308,6 +443,9 @@
         const pageIndicator = document.getElementById('page-indicator');
         const magnifier = document.getElementById('magnifier');
         const magnifierContent = document.getElementById('magnifier-content');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        const loadingProgressBar = document.getElementById('loading-progress-bar');
 
         // Buttons
         const prevBtn = document.getElementById('prev-btn');
@@ -324,32 +462,144 @@
             set() { }
         });
 
+        // Loading functions
+        function showLoading(direction = '') {
+            if (isLoading) return;
+
+            isLoading = true;
+            loadingOverlay.classList.add('show');
+            pageIndicator.classList.add('loading');
+
+            // Update loading text based on direction
+            if (direction === 'prev') {
+                loadingText.textContent = 'Memuat halaman sebelumnya...';
+            } else if (direction === 'next') {
+                loadingText.textContent = 'Memuat halaman selanjutnya...';
+            } else {
+                loadingText.textContent = 'Memuat video...';
+            }
+
+            // Disable all interactive elements
+            disableControls();
+
+            // Start progress animation
+            animateProgress();
+        }
+
+        function hideLoading() {
+            isLoading = false;
+            loadingOverlay.classList.remove('show');
+            pageIndicator.classList.remove('loading');
+            loadingProgressBar.style.width = '0%';
+
+            // Re-enable controls
+            enableControls();
+        }
+
+        function disableControls() {
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            prevBtn.classList.add('loading');
+            nextBtn.classList.add('loading');
+            leftClickArea.classList.add('disabled');
+            rightClickArea.classList.add('disabled');
+        }
+
+        function enableControls() {
+            prevBtn.classList.remove('loading');
+            nextBtn.classList.remove('loading');
+            leftClickArea.classList.remove('disabled');
+            rightClickArea.classList.remove('disabled');
+            updateButtons(); // This will properly set disabled state based on current index
+        }
+
+        function animateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (!isLoading) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+
+                loadingProgressBar.style.width = progress + '%';
+
+                if (progress >= 90) {
+                    clearInterval(interval);
+                }
+            }, 100);
+        }
+
+        function completeProgress() {
+            loadingProgressBar.style.width = '100%';
+            setTimeout(() => {
+                hideLoading();
+            }, 300);
+        }
+
         function loadVideo(index, isReverse = false) {
+            if (isLoading) return; // Prevent multiple loading requests
+
+            const direction = isReverse ? 'prev' : 'next';
+            showLoading(direction);
+
             const currentVideo = showingA ? videoA : videoB;
             const nextVideo = showingA ? videoB : videoA;
 
             nextVideo.src = isReverse ? videos[index].reverse : videos[index].normal;
-            nextVideo.load();
 
-            nextVideo.onloadeddata = () => {
-                nextVideo.classList.remove('hidden');
-                nextVideo.play();
-                currentVideo.classList.add('hidden');
-                showingA = !showingA;
-                updatePageIndicator();
-                updateButtons();
+            // Add error handling
+            nextVideo.onerror = () => {
+                console.error('Error loading video:', nextVideo.src);
+                loadingText.textContent = 'Error memuat video. Mencoba lagi...';
+
+                setTimeout(() => {
+                    nextVideo.load(); // Retry loading
+                }, 1000);
             };
+
+            nextVideo.onloadstart = () => {
+                loadingProgressBar.style.width = '20%';
+            };
+
+            nextVideo.onprogress = () => {
+                if (nextVideo.buffered.length > 0) {
+                    const buffered = nextVideo.buffered.end(0) / nextVideo.duration;
+                    const progress = Math.min(buffered * 100, 95);
+                    loadingProgressBar.style.width = progress + '%';
+                }
+            };
+
+            nextVideo.oncanplaythrough = () => {
+                completeProgress();
+
+                setTimeout(() => {
+                    nextVideo.classList.remove('hidden');
+                    nextVideo.play().then(() => {
+                        currentVideo.classList.add('hidden');
+                        showingA = !showingA;
+                        updatePageIndicator();
+                    }).catch(error => {
+                        console.error('Error playing video:', error);
+                        hideLoading();
+                    });
+                }, 100);
+            };
+
+            nextVideo.load();
         }
 
         function goPrev() {
-            if (currentIndex > 0) {
+            if (currentIndex > 0 && !isLoading) {
                 loadVideo(currentIndex, true);
                 currentIndex--;
             }
         }
 
         function goNext() {
-            if (currentIndex < videos.length - 1) {
+            if (currentIndex < videos.length - 1 && !isLoading) {
                 currentIndex++;
                 loadVideo(currentIndex, false);
             }
@@ -360,8 +610,10 @@
         }
 
         function updateButtons() {
-            prevBtn.disabled = currentIndex === 0;
-            nextBtn.disabled = currentIndex === videos.length - 1;
+            if (!isLoading) {
+                prevBtn.disabled = currentIndex === 0;
+                nextBtn.disabled = currentIndex === videos.length - 1;
+            }
         }
 
         // Zoom functions
@@ -466,11 +718,28 @@
         }
 
         // Initialize
+        showLoading('init');
         videoA.src = videos[currentIndex].normal;
-        videoA.onloadeddata = () => {
-            videoA.play();
-            updatePageIndicator();
-            updateButtons();
+
+        videoA.oncanplaythrough = () => {
+            completeProgress();
+            setTimeout(() => {
+                videoA.play().then(() => {
+                    updatePageIndicator();
+                    updateButtons();
+                }).catch(error => {
+                    console.error('Error playing initial video:', error);
+                    hideLoading();
+                });
+            }, 100);
+        };
+
+        videoA.onerror = () => {
+            console.error('Error loading initial video');
+            loadingText.textContent = 'Error memuat video awal';
+            setTimeout(() => {
+                hideLoading();
+            }, 2000);
         };
 
         // Event listeners
@@ -484,6 +753,8 @@
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
+            if (isLoading) return; // Ignore keyboard input during loading
+
             switch (e.key) {
                 case 'ArrowLeft':
                     e.preventDefault();
@@ -549,6 +820,8 @@
         const CLICK_THRESHOLD = 5;
 
         function handleTouchEnd(x) {
+            if (isLoading) return; // Ignore touch during loading
+
             const deltaX = x - startX;
             if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
                 isClick = false;
@@ -566,6 +839,7 @@
         }
 
         videoContainer.addEventListener('touchstart', (e) => {
+            if (isLoading) return;
             startX = e.touches[0].clientX;
             isSwiping = true;
             isClick = true;
@@ -573,7 +847,7 @@
         });
 
         videoContainer.addEventListener('touchmove', (e) => {
-            if (!isSwiping) return;
+            if (!isSwiping || isLoading) return;
             if (Math.abs(e.touches[0].clientX - startX) > CLICK_THRESHOLD) {
                 isClick = false;
             }
@@ -581,20 +855,20 @@
         });
 
         videoContainer.addEventListener('touchend', (e) => {
-            if (!isSwiping) return;
+            if (!isSwiping || isLoading) return;
             handleTouchEnd(e.changedTouches[0].clientX);
         });
 
         // Click areas
         leftClickArea.addEventListener('click', (e) => {
-            if (isClick) {
+            if (isClick && !isLoading) {
                 goPrev();
                 showControls();
             }
         });
 
         rightClickArea.addEventListener('click', (e) => {
-            if (isClick) {
+            if (isClick && !isLoading) {
                 goNext();
                 showControls();
             }
