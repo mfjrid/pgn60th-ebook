@@ -382,8 +382,8 @@
         <!-- Loading Overlay -->
         <div class="loading-overlay" id="loading-overlay">
             <div style="text-align: center;">
-                <div class="loading-spinner"></div>
-                <div class="loading-text" id="loading-text">Memuat video...</div>
+                <!-- <div class="loading-spinner"></div> -->
+                <div class="loading-text" id="loading-text">Memuat ebook...</div>
                 <div class="loading-progress">
                     <div class="loading-progress-bar" id="loading-progress-bar"></div>
                 </div>
@@ -472,11 +472,11 @@
 
             // Update loading text based on direction
             if (direction === 'prev') {
-                loadingText.textContent = 'Memuat halaman sebelumnya...';
+                // loadingText.textContent = 'Memuat halaman sebelumnya...';
             } else if (direction === 'next') {
-                loadingText.textContent = 'Memuat halaman selanjutnya...';
+                // loadingText.textContent = 'Memuat halaman selanjutnya...';
             } else {
-                loadingText.textContent = 'Memuat video...';
+                loadingText.textContent = 'Memuat ebook...';
             }
 
             // Disable all interactive elements
@@ -553,7 +553,7 @@
             // Add error handling
             nextVideo.onerror = () => {
                 console.error('Error loading video:', nextVideo.src);
-                loadingText.textContent = 'Error memuat video. Mencoba lagi...';
+                loadingText.textContent = 'Error memuat ebook. Mencoba lagi...';
 
                 setTimeout(() => {
                     nextVideo.load(); // Retry loading
@@ -736,7 +736,7 @@
 
         videoA.onerror = () => {
             console.error('Error loading initial video');
-            loadingText.textContent = 'Error memuat video awal';
+            loadingText.textContent = 'Error memuat ebook awal';
             setTimeout(() => {
                 hideLoading();
             }, 2000);
