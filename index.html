@@ -382,7 +382,9 @@
         <!-- Loading Overlay -->
         <div class="loading-overlay" id="loading-overlay">
             <div style="text-align: center;">
+                <!-- <div class="loading-spinner"></div> -->
                 <div class="loading-text" id="loading-text"></div>
+                <!-- <div class="loading-text" id="loading-text">Memuat ebook...</div> -->
                 <div class="loading-progress">
                     <div class="loading-progress-bar" id="loading-progress-bar"></div>
                 </div>
@@ -455,70 +457,34 @@
         const zoomOutBtn = document.getElementById('zoom-out');
         const zoomResetBtn = document.getElementById('zoom-reset');
 
-        // ==================== INDEXEDDB IMPLEMENTATION ====================
-        const openDB = () => {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open('VideoCacheDB', 1);
-
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains('videos')) {
-                        db.createObjectStore('videos', { keyPath: 'id' });
-                    }
-                };
-
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        };
-
-        const storeVideo = async (id, blob) => {
-            const db = await openDB();
-            const transaction = db.transaction('videos', 'readwrite');
-            const store = transaction.objectStore('videos');
-            store.put({ id, data: blob });
-        };
-
-        const getVideo = async (id) => {
-            const db = await openDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction('videos', 'readonly');
-                const store = transaction.objectStore('videos');
-                const request = store.get(id);
-
-                request.onsuccess = () => resolve(request.result?.data);
-                request.onerror = () => reject(request.error);
-            });
-        };
-
-        const clearOldCache = async () => {
-            const db = await openDB();
-            const store = db.transaction('videos', 'readwrite').objectStore('videos');
-            store.getAllKeys().then(keys => {
-                if (keys.length > 50) { // Hapus 20 video terlama
-                    keys.slice(0, 20).forEach(key => store.delete(key));
-                }
-            });
-        };
-        // ==================== END OF INDEXEDDB ====================
+        // Tambahan proteksi
+        Object.defineProperty(document, 'oncontextmenu', {
+            get() { return null; },
+            set() { }
+        });
 
         // Loading functions
         function showLoading(direction = '') {
             if (isLoading) return;
 
             isLoading = true;
-            loadingOverlay.classList.add('show');
-            pageIndicator.classList.add('loading');
+            // loadingOverlay.classList.add('show');
+            // pageIndicator.classList.add('loading');
 
+            // Update loading text based on direction
             if (direction === 'prev') {
-                loadingText.textContent = 'Memuat halaman sebelumnya...';
+                // loadingText.textContent = 'Memuat halaman sebelumnya...';
             } else if (direction === 'next') {
-                loadingText.textContent = 'Memuat halaman selanjutnya...';
+                // loadingText.textContent = 'Memuat halaman selanjutnya...';
             } else {
-                loadingText.textContent = 'Memuat ebook...';
+                // loadingText.textContent = 'Memuat ebook...';
             }
 
+            // Disable all interactive elements
             disableControls();
+
+            // Start progress animation
+            // animateProgress();
         }
 
         function hideLoading() {
@@ -526,6 +492,8 @@
             loadingOverlay.classList.remove('show');
             pageIndicator.classList.remove('loading');
             loadingProgressBar.style.width = '0%';
+
+            // Re-enable controls
             enableControls();
         }
 
@@ -543,54 +511,26 @@
             nextBtn.classList.remove('loading');
             leftClickArea.classList.remove('disabled');
             rightClickArea.classList.remove('disabled');
-            updateButtons();
+            updateButtons(); // This will properly set disabled state based on current index
         }
 
-        async function loadVideo(index, isReverse = false) {
-            if (isLoading) return;
+        function animateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (!isLoading) {
+                    clearInterval(interval);
+                    return;
+                }
 
-            const direction = isReverse ? 'prev' : 'next';
-            showLoading(direction);
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
 
-            const currentVideo = showingA ? videoA : videoB;
-            const nextVideo = showingA ? videoB : videoA;
-            const videoKey = `${index}_${isReverse ? 'reverse' : 'normal'}`;
+                loadingProgressBar.style.width = progress + '%';
 
-            // Cek apakah video sudah ada di IndexedDB
-            const cachedVideo = await getVideo(videoKey);
-
-            if (cachedVideo) {
-                // Gunakan video dari cache
-                nextVideo.src = URL.createObjectURL(cachedVideo);
-                completeProgress();
-                nextVideo.classList.remove('hidden');
-                nextVideo.play().then(() => {
-                    currentVideo.classList.add('hidden');
-                    showingA = !showingA;
-                    updatePageIndicator();
-                });
-            } else {
-                // Unduh video jika belum ada di cache
-                const videoUrl = isReverse ? videos[index].reverse : videos[index].normal;
-                nextVideo.src = videoUrl;
-
-                nextVideo.oncanplaythrough = async () => {
-                    // Simpan video ke IndexedDB setelah diunduh
-                    const response = await fetch(videoUrl);
-                    const blob = await response.blob();
-                    await storeVideo(videoKey, blob);
-
-                    completeProgress();
-                    nextVideo.classList.remove('hidden');
-                    nextVideo.play().then(() => {
-                        currentVideo.classList.add('hidden');
-                        showingA = !showingA;
-                        updatePageIndicator();
-                    });
-                };
-
-                nextVideo.load();
-            }
+                if (progress >= 90) {
+                    clearInterval(interval);
+                }
+            }, 100);
         }
 
         function completeProgress() {
@@ -598,6 +538,58 @@
             setTimeout(() => {
                 hideLoading();
             }, 300);
+        }
+
+        function loadVideo(index, isReverse = false) {
+            if (isLoading) return; // Prevent multiple loading requests
+
+            const direction = isReverse ? 'prev' : 'next';
+            showLoading(direction);
+
+            const currentVideo = showingA ? videoA : videoB;
+            const nextVideo = showingA ? videoB : videoA;
+
+            nextVideo.src = isReverse ? videos[index].reverse : videos[index].normal;
+
+            // Add error handling
+            nextVideo.onerror = () => {
+                console.error('Error loading video:', nextVideo.src);
+                loadingText.textContent = 'Error memuat ebook. Mencoba lagi...';
+
+                setTimeout(() => {
+                    nextVideo.load(); // Retry loading
+                }, 1000);
+            };
+
+            nextVideo.onloadstart = () => {
+                loadingProgressBar.style.width = '20%';
+            };
+
+            nextVideo.onprogress = () => {
+                if (nextVideo.buffered.length > 0) {
+                    const buffered = nextVideo.buffered.end(0) / nextVideo.duration;
+                    const progress = Math.min(buffered * 100, 95);
+                    loadingProgressBar.style.width = progress + '%';
+                }
+            };
+
+            nextVideo.oncanplaythrough = () => {
+                completeProgress();
+
+                setTimeout(() => {
+                    nextVideo.classList.remove('hidden');
+                    nextVideo.play().then(() => {
+                        currentVideo.classList.add('hidden');
+                        showingA = !showingA;
+                        updatePageIndicator();
+                    }).catch(error => {
+                        console.error('Error playing video:', error);
+                        hideLoading();
+                    });
+                }, 100);
+            };
+
+            nextVideo.load();
         }
 
         function goPrev() {
@@ -762,7 +754,7 @@
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
-            if (isLoading) return;
+            if (isLoading) return; // Ignore keyboard input during loading
 
             switch (e.key) {
                 case 'ArrowLeft':
@@ -829,7 +821,7 @@
         const CLICK_THRESHOLD = 5;
 
         function handleTouchEnd(x) {
-            if (isLoading) return;
+            if (isLoading) return; // Ignore touch during loading
 
             const deltaX = x - startX;
             if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
