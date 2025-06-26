@@ -223,7 +223,7 @@
             }
         }
 
-        #magnifier-btn {
+        .d-none {
             display: none !important;
         }
     </style>
@@ -258,10 +258,10 @@
     </div>
 
     <!-- Page Indicator -->
-    <div class="page-indicator" id="page-indicator">1 / 91</div>
+    <div class="page-indicator d-none" id="page-indicator">1 / 91</div>
 
     <!-- Zoom Controls -->
-    <div class="zoom-controls auto-hide" id="zoom-controls">
+    <div class="zoom-controls auto-hide d-none" id="zoom-controls">
         <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
         <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
         <button class="zoom-btn" id="zoom-reset" title="Reset Zoom">⌂</button>
@@ -278,7 +278,7 @@
         <button class="control-btn" id="fullscreen-btn" title="Fullscreen (F11)">
             ⛶ Fullscreen
         </button>
-        <button class="control-btn" id="magnifier-btn" title="Toggle Magnifier">
+        <button class="control-btn d-none" id="magnifier-btn" title="Toggle Magnifier">
             🔍 Magnifier
         </button>
     </div>
