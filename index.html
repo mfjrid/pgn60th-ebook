@@ -468,8 +468,8 @@
             if (isLoading) return;
 
             isLoading = true;
-            loadingOverlay.classList.add('show');
-            pageIndicator.classList.add('loading');
+            // loadingOverlay.classList.add('show');
+            // pageIndicator.classList.add('loading');
 
             // Update loading text based on direction
             if (direction === 'prev') {
@@ -484,7 +484,7 @@
             disableControls();
 
             // Start progress animation
-            animateProgress();
+            // animateProgress();
         }
 
         function hideLoading() {
