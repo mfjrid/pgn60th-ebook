@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <title>PGN Flipbook</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+
+        #video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .click-area {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 20%;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .left-click-area {
+            left: 0;
+        }
+
+        .right-click-area {
+            right: 0;
+        }
+
+        /* Loading Animation */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            backdrop-filter: blur(2px);
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Progress bar for loading */
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* Cache status indicator */
+        .cache-status {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .cache-status.cached {
+            background: rgba(76, 175, 80, 0.7);
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+
+        .cache-status.downloading {
+            background: rgba(255, 193, 7, 0.7);
+            border-color: rgba(255, 193, 7, 0.5);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .controls.show {
+            opacity: 1;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .control-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn:disabled:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: none;
+        }
+
+        /* Loading state for buttons */
+        .control-btn.loading {
+            opacity: 0.7;
+            cursor: wait;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+        }
+
+        /* Page indicator */
+        .page-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-indicator.loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Magnifier */
+        .magnifier {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(2px);
+            display: none;
+            overflow: hidden;
+        }
+
+        .magnifier-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        /* Auto-hide controls */
+        .auto-hide {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .auto-hide.show {
+            opacity: 1;
+        }
+
+        /* Disabled click areas during loading */
+        .click-area.disabled {
+            pointer-events: none;
+            cursor: wait;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 10px;
+                padding: 8px 15px;
+                gap: 8px;
+            }
+
+            .control-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                min-width: 70px;
+            }
+
+            .zoom-controls {
+                top: 10px;
+                left: 10px;
+            }
+
+            .zoom-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            .page-indicator {
+                top: 10px;
+                right: 10px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            .cache-status {
+                top: 50px;
+                right: 10px;
+                padding: 4px 8px;
+                font-size: 10px;
+            }
+
+            .loading-spinner {
+                width: 50px;
+                height: 50px;
+            }
+
+            .loading-text {
+                font-size: 14px;
+            }
+
+            .loading-progress {
+                width: 150px;
+            }
+        }
+
+        .d-none {
+            display: none !important;
+        }
+    </style>
+    <script>
+        // Anti Inspect Element
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (e.key === 'F12' ||
+                (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                alert('Akses dilarang');
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <div id="video-container">
+        <div class="click-area left-click-area"></div>
+        <video id="videoA" autoplay muted playsinline></video>
+        <video id="videoB" autoplay muted playsinline class="hidden"></video>
+        <div class="click-area right-click-area"></div>
+        <div class="magnifier" id="magnifier">
+            <div class="magnifier-content" id="magnifier-content"></div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div style="text-align: center;">
+                <div class="loading-spinner"></div>
+                <div class="loading-text" id="loading-text">Memuat ebook...</div>
+                <div class="loading-progress">
+                    <div class="loading-progress-bar" id="loading-progress-bar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Indicator -->
+    <div class="page-indicator d-none" id="page-indicator">1 / 91</div>
+
+    <!-- Cache Status -->
+    <div class="cache-status" id="cache-status">Cache: Loading...</div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls auto-hide d-none" id="zoom-controls">
+        <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+        <button class="zoom-btn" id="zoom-reset" title="Reset Zoom">⌂</button>
+    </div>
+
+    <!-- Main Controls -->
+    <div class="controls auto-hide" id="controls">
+        <button class="control-btn" id="prev-btn" title="Previous (←)">
+            ← Prev
+        </button>
+        <button class="control-btn" id="next-btn" title="Next (→)">
+            Next →
+        </button>
+        <button class="control-btn" id="fullscreen-btn" title="Fullscreen (F11)">
+            ⛶ Fullscreen
+        </button>
+        <button class="control-btn d-none" id="magnifier-btn" title="Toggle Magnifier">
+            🔍 Magnifier
+        </button>
+        <button class="control-btn" id="clear-cache-btn" title="Clear Cache">
+            🗑️ Clear Cache
+        </button>
+    </div>
+
+    <script>
+        // IndexedDB Cache Manager
+        class VideoCacheManager {
+            constructor() {
+                this.dbName = 'PGNFlipbookCache';
+                this.dbVersion = 1;
+                this.storeName = 'videos';
+                this.db = null;
+                this.cacheStatus = document.getElementById('cache-status');
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+
+                    request.onerror = () => {
+                        console.error('IndexedDB error:', request.error);
+                        this.updateCacheStatus('Cache: Error');
+                        reject(request.error);
+                    };
+
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        console.log('IndexedDB initialized successfully');
+                        this.updateCacheStatus('Cache: Ready');
+                        resolve();
+                    };
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
+                            store.createIndex('url', 'url', { unique: true });
+                            store.createIndex('timestamp', 'timestamp', { unique: false });
+                        }
+                    };
+                });
+            }
+
+            async getCachedVideo(url) {
+                if (!this.db) return null;
+
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([this.storeName], 'readonly');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.get(this.generateId(url));
+
+                    request.onsuccess = () => {
+                        if (request.result) {
+                            console.log('Video found in cache:', url);
+                            resolve(request.result.blob);
+                        } else {
+                            resolve(null);
+                        }
+                    };
+
+                    request.onerror = () => {
+                        console.error('Error getting cached video:', request.error);
+                        resolve(null);
+                    };
+                });
+            }
+
+            async cacheVideo(url, blob) {
+                if (!this.db) return false;
+
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+
+                    const videoData = {
+                        id: this.generateId(url),
+                        url: url,
+                        blob: blob,
+                        timestamp: Date.now(),
+                        size: blob.size
+                    };
+
+                    const request = store.put(videoData);
+
+                    request.onsuccess = () => {
+                        console.log('Video cached successfully:', url);
+                        resolve(true);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Error caching video:', request.error);
+                        resolve(false);
+                    };
+                });
+            }
+
+            async clearCache() {
+                if (!this.db) return false;
+
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.clear();
+
+                    request.onsuccess = () => {
+                        console.log('Cache cleared successfully');
+                        this.updateCacheStatus('Cache: Cleared');
+                        resolve(true);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Error clearing cache:', request.error);
+                        resolve(false);
+                    };
+                });
+            }
+
+            async getCacheSize() {
+                if (!this.db) return 0;
+
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction([this.storeName], 'readonly');
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.getAll();
+
+                    request.onsuccess = () => {
+                        const totalSize = request.result.reduce((size, item) => size + (item.size || 0), 0);
+                        resolve(totalSize);
+                    };
+
+                    request.onerror = () => {
+                        resolve(0);
+                    };
+                });
+            }
+
+            generateId(url) {
+                return btoa(url).replace(/[^a-zA-Z0-9]/g, '');
+            }
+
+            updateCacheStatus(status, isCached = false, isDownloading = false) {
+                this.cacheStatus.textContent = status;
+                this.cacheStatus.className = 'cache-status';
+
+                if (isCached) {
+                    this.cacheStatus.classList.add('cached');
+                } else if (isDownloading) {
+                    this.cacheStatus.classList.add('downloading');
+                }
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+
+        // Initialize cache manager
+        const cacheManager = new VideoCacheManager();
+
+        const videos = Array.from({ length: 91 }, (_, i) => {
+            const slideNum = i + 1;
+            return {
+                normal: `stream.php?file=slide-${slideNum}.mp4`,
+                reverse: `stream.php?file=slide_reverse-${slideNum}.mp4`
+            };
+        });
+
+        let currentIndex = 0;
+        let showingA = true;
+        let zoomLevel = 1;
+        let magnifierEnabled = false;
+        let controlsTimeout;
+        let isLoading = false;
+
+        const videoA = document.getElementById('videoA');
+        const videoB = document.getElementById('videoB');
+        const videoContainer = document.getElementById('video-container');
+        const leftClickArea = document.querySelector('.left-click-area');
+        const rightClickArea = document.querySelector('.right-click-area');
+        const controls = document.getElementById('controls');
+        const zoomControls = document.getElementById('zoom-controls');
+        const pageIndicator = document.getElementById('page-indicator');
+        const magnifier = document.getElementById('magnifier');
+        const magnifierContent = document.getElementById('magnifier-content');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        const loadingProgressBar = document.getElementById('loading-progress-bar');
+
+        // Buttons
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const magnifierBtn = document.getElementById('magnifier-btn');
+        const clearCacheBtn = document.getElementById('clear-cache-btn');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const zoomResetBtn = document.getElementById('zoom-reset');
+
+        // Enhanced video loading with cache
+        async function loadVideoWithCache(url) {
+            try {
+                // First, try to get from cache
+                const cachedBlob = await cacheManager.getCachedVideo(url);
+
+                if (cachedBlob) {
+                    cacheManager.updateCacheStatus('From Cache', true);
+                    return URL.createObjectURL(cachedBlob);
+                }
+
+                // If not in cache, download and cache it
+                cacheManager.updateCacheStatus('Downloading...', false, true);
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+
+                // Cache the video
+                await cacheManager.cacheVideo(url, blob);
+                cacheManager.updateCacheStatus('Downloaded & Cached', true);
+
+                return URL.createObjectURL(blob);
+
+            } catch (error) {
+                console.error('Error loading video:', error);
+                cacheManager.updateCacheStatus('Download Error');
+                throw error;
+            }
+        }
+
+        // Loading functions
+        function showLoading(direction = '') {
+            if (isLoading) return;
+
+            isLoading = true;
+            loadingOverlay.classList.add('show');
+            pageIndicator.classList.add('loading');
+
+            // Update loading text based on direction
+            if (direction === 'prev') {
+                loadingText.textContent = 'Memuat halaman sebelumnya...';
+            } else if (direction === 'next') {
+                loadingText.textContent = 'Memuat halaman selanjutnya...';
+            } else {
+                loadingText.textContent = 'Memuat ebook...';
+            }
+
+            // Disable all interactive elements
+            disableControls();
+
+            // Start progress animation
+            animateProgress();
+        }
+
+        function hideLoading() {
+            isLoading = false;
+            loadingOverlay.classList.remove('show');
+            pageIndicator.classList.remove('loading');
+            loadingProgressBar.style.width = '0%';
+
+            // Re-enable controls
+            enableControls();
+        }
+
+        function disableControls() {
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            prevBtn.classList.add('loading');
+            nextBtn.classList.add('loading');
+            leftClickArea.classList.add('disabled');
+            rightClickArea.classList.add('disabled');
+        }
+
+        function enableControls() {
+            prevBtn.classList.remove('loading');
+            nextBtn.classList.remove('loading');
+            leftClickArea.classList.remove('disabled');
+            rightClickArea.classList.remove('disabled');
+            updateButtons(); // This will properly set disabled state based on current index
+        }
+
+        function animateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (!isLoading) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+
+                loadingProgressBar.style.width = progress + '%';
+
+                if (progress >= 90) {
+                    clearInterval(interval);
+                }
+            }, 100);
+        }
+
+        function completeProgress() {
+            loadingProgressBar.style.width = '100%';
+            setTimeout(() => {
+                hideLoading();
+            }, 300);
+        }
+
+        async function loadVideo(index, isReverse = false) {
+            if (isLoading) return; // Prevent multiple loading requests
+
+            const direction = isReverse ? 'prev' : 'next';
+            showLoading(direction);
+
+            try {
+                const currentVideo = showingA ? videoA : videoB;
+                const nextVideo = showingA ? videoB : videoA;
+
+                const videoUrl = isReverse ? videos[index].reverse : videos[index].normal;
+                const videoSrc = await loadVideoWithCache(videoUrl);
+
+                nextVideo.src = videoSrc;
+
+                // Add error handling
+                nextVideo.onerror = () => {
+                    console.error('Error playing video:', nextVideo.src);
+                    loadingText.textContent = 'Error memuat ebook. Mencoba lagi...';
+                    cacheManager.updateCacheStatus('Playback Error');
+                    hideLoading();
+                };
+
+                nextVideo.onloadstart = () => {
+                    loadingProgressBar.style.width = '60%';
+                };
+
+                nextVideo.oncanplaythrough = () => {
+                    completeProgress();
+
+                    setTimeout(() => {
+                        nextVideo.classList.remove('hidden');
+                        nextVideo.play().then(() => {
+                            currentVideo.classList.add('hidden');
+                            // Clean up old object URL
+                            if (currentVideo.src.startsWith('blob:')) {
+                                URL.revokeObjectURL(currentVideo.src);
+                            }
+                            showingA = !showingA;
+                            updatePageIndicator();
+                        }).catch(error => {
+                            console.error('Error playing video:', error);
+                            hideLoading();
+                        });
+                    }, 100);
+                };
+
+                nextVideo.load();
+
+            } catch (error) {
+                console.error('Error loading video:', error);
+                loadingText.textContent = 'Error memuat video';
+                hideLoading();
+            }
+        }
+
+        function goPrev() {
+            if (currentIndex > 0 && !isLoading) {
+                loadVideo(currentIndex, true);
+                currentIndex--;
+            }
+        }
+
+        function goNext() {
+            if (currentIndex < videos.length - 1 && !isLoading) {
+                currentIndex++;
+                loadVideo(currentIndex, false);
+            }
+        }
+
+        function updatePageIndicator() {
+            pageIndicator.textContent = `${currentIndex + 1} / ${videos.length}`;
+        }
+
+        function updateButtons() {
+            if (!isLoading) {
+                prevBtn.disabled = currentIndex === 0;
+                nextBtn.disabled = currentIndex === videos.length - 1;
+            }
+        }
+
+        // Clear cache function
+        async function clearCache() {
+            if (confirm('Hapus semua cache video? Ini akan memerlukan download ulang video.')) {
+                const success = await cacheManager.clearCache();
+                if (success) {
+                    alert('Cache berhasil dihapus');
+                } else {
+                    alert('Gagal menghapus cache');
+                }
+            }
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel * 1.2, 3);
+            applyZoom();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel / 1.2, 0.5);
+            applyZoom();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const currentVideo = showingA ? videoA : videoB;
+            currentVideo.style.transform = `scale(${zoomLevel})`;
+        }
+
+        // Fullscreen function
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                enterFullscreen();
+            } else {
+                exitFullscreen();
+            }
+        }
+
+        function enterFullscreen() {
+            const element = document.documentElement;
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        }
+
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+
+        // Magnifier functions
+        function toggleMagnifier() {
+            magnifierEnabled = !magnifierEnabled;
+            magnifierBtn.textContent = magnifierEnabled ? '🔍 Magnifier ON' : '🔍 Magnifier';
+            magnifierBtn.style.background = magnifierEnabled ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)';
+
+            if (!magnifierEnabled) {
+                magnifier.style.display = 'none';
+            }
+        }
+
+        function updateMagnifier(e) {
+            if (!magnifierEnabled) return;
+
+            const rect = videoContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            magnifier.style.display = 'block';
+            magnifier.style.left = (x - 75) + 'px';
+            magnifier.style.top = (y - 75) + 'px';
+
+            const currentVideo = showingA ? videoA : videoB;
+            const videoRect = currentVideo.getBoundingClientRect();
+            const containerRect = videoContainer.getBoundingClientRect();
+
+            const videoX = ((x - (videoRect.left - containerRect.left)) / videoRect.width) * 100;
+            const videoY = ((y - (videoRect.top - containerRect.top)) / videoRect.height) * 100;
+
+            magnifierContent.style.backgroundImage = `url(${currentVideo.currentSrc || currentVideo.src})`;
+            magnifierContent.style.backgroundPosition = `${videoX}% ${videoY}%`;
+            magnifierContent.style.backgroundSize = '200%';
+        }
+
+        // Controls auto-hide
+        function showControls() {
+            controls.classList.add('show');
+            zoomControls.classList.add('show');
+
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                controls.classList.remove('show');
+                zoomControls.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize application
+        async function initializeApp() {
+            try {
+                // Initialize IndexedDB
+                await cacheManager.init();
+
+                // Show cache size
+                const cacheSize = await cacheManager.getCacheSize();
+                if (cacheSize > 0) {
+                    cacheManager.updateCacheStatus(`Cache: ${cacheManager.formatBytes(cacheSize)}`, true);
+                }
+
+                // Load initial video
+                showLoading('init');
+                const initialVideoSrc = await loadVideoWithCache(videos[currentIndex].normal);
+                videoA.src = initialVideoSrc;
+
+                videoA.oncanplaythrough = () => {
+                    completeProgress();
+                    setTimeout(() => {
+                        videoA.play().then(() => {
+                            updatePageIndicator();
+                            updateButtons();
+                        }).catch(error => {
+                            console.error('Error playing initial video:', error);
+                            hideLoading();
+                        });
+                    }, 100);
+                };
+
+                videoA.onerror = () => {
+                    console.error('Error loading initial video');
+                    loadingText.textContent = 'Error memuat ebook awal';
+                    cacheManager.updateCacheStatus('Initial Load Error');
+                    setTimeout(() => {
+                        hideLoading();
+                    }, 2000);
+                };
+
+                videoA.load();
+
+            } catch (error) {
+                console.error('Failed to initialize app:', error);
+                cacheManager.updateCacheStatus('Initialization Error');
+                hideLoading();
+            }
+        }
+
+        // Preload adjacent videos in background
+        async function preloadAdjacentVideos() {
+            const preloadList = [];
+
+            // Preload next video
+            if (currentIndex < videos.length - 1) {
+                preloadList.push(videos[currentIndex + 1].normal);
+                preloadList.push(videos[currentIndex + 1].reverse);
+            }
+
+            // Preload previous video
+            if (currentIndex > 0) {
+                preloadList.push(videos[currentIndex - 1].normal);
+                preloadList.push(videos[currentIndex - 1].reverse);
+            }
+
+            // Preload in background without showing loading
+            for (const url of preloadList) {
+                try {
+                    const cached = await cacheManager.getCachedVideo(url);
+                    if (!cached) {
+                        // Download and cache in background
+                        fetch(url).then(response => response.blob()).then(blob => {
+                            cacheManager.cacheVideo(url, blob);
+                        }).catch(error => {
+                            console.log('Background preload failed for:', url);
+                        });
+                    }
+                } catch (error) {
+                    console.log('Background preload error:', error);
+                }
+            }
+        }
+
+        // Event listeners
+        prevBtn.addEventListener('click', goPrev);
+        nextBtn.addEventListener('click', goNext);
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        magnifierBtn.addEventListener('click', toggleMagnifier);
+        clearCacheBtn.addEventListener('click', clearCache);
+        zoomInBtn.addEventListener('click', zoomIn);
+        zoomOutBtn.addEventListener('click', zoomOut);
+        zoomResetBtn.addEventListener('click', resetZoom);
+
+        // Enhanced keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (isLoading) return; // Ignore keyboard input during loading
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    goPrev();
+                    showControls();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    goNext();
+                    showControls();
+                    break;
+                case 'F11':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    zoomIn();
+                    showControls();
+                    break;
+                case '-':
+                    e.preventDefault();
+                    zoomOut();
+                    showControls();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    resetZoom();
+                    showControls();
+                    break;
+                case 'm':
+                case 'M':
+                    e.preventDefault();
+                    toggleMagnifier();
+                    showControls();
+                    break;
+                case 'c':
+                case 'C':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        clearCache();
+                        showControls();
+                    }
+                    break;
+            }
+        });
+
+        // Mouse hover events for magnifier
+        videoContainer.addEventListener('mouseenter', (e) => {
+            if (magnifierEnabled) {
+                updateMagnifier(e);
+            }
+        });
+
+        videoContainer.addEventListener('mousemove', (e) => {
+            if (magnifierEnabled) {
+                updateMagnifier(e);
+            }
+        });
+
+        videoContainer.addEventListener('mouseleave', () => {
+            magnifier.style.display = 'none';
+        });
+
+        // Enhanced touch events for navigation
+        let startX = 0;
+        let isSwiping = false;
+        let isClick = true;
+        const SWIPE_THRESHOLD = 50;
+        const CLICK_THRESHOLD = 5;
+
+        function handleTouchEnd(x) {
+            if (isLoading) return; // Ignore touch during loading
+
+            const deltaX = x - startX;
+            if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                isClick = false;
+                if (deltaX < 0) {
+                    goNext();
+                } else {
+                    goPrev();
+                }
+            }
+
+            setTimeout(() => {
+                isSwiping = false;
+                isClick = true;
+            }, 100);
+        }
+
+        videoContainer.addEventListener('touchstart', (e) => {
+            if (isLoading) return;
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+            isClick = true;
+            showControls();
+        });
+
+        videoContainer.addEventListener('touchmove', (e) => {
+            if (!isSwiping || isLoading) return;
+            if (Math.abs(e.touches[0].clientX - startX) > CLICK_THRESHOLD) {
+                isClick = false;
+            }
+            e.preventDefault();
+        });
+
+        videoContainer.addEventListener('touchend', (e) => {
+            if (!isSwiping || isLoading) return;
+            handleTouchEnd(e.changedTouches[0].clientX);
+        });
+
+        // Click areas
+        leftClickArea.addEventListener('click', (e) => {
+            if (isClick && !isLoading) {
+                goPrev();
+                showControls();
+            }
+        });
+
+        rightClickArea.addEventListener('click', (e) => {
+            if (isClick && !isLoading) {
+                goNext();
+                showControls();
+            }
+        });
+
+        // Show controls on mouse move
+        document.addEventListener('mousemove', showControls);
+        document.addEventListener('click', showControls);
+
+        // Page change event for preloading
+        function onPageChange() {
+            updatePageIndicator();
+            updateButtons();
+            // Preload adjacent videos after a short delay
+            setTimeout(() => {
+                if (!isLoading) {
+                    preloadAdjacentVideos();
+                }
+            }, 1000);
+        }
+
+        // Override the original page change functions
+        const originalGoNext = goNext;
+        const originalGoPrev = goPrev;
+
+        goNext = function () {
+            originalGoNext();
+            onPageChange();
+        };
+
+        goPrev = function () {
+            originalGoPrev();
+            onPageChange();
+        };
+
+        // Initialize the application
+        initializeApp();
+
+        // Initial controls show
+        showControls();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            // Revoke any object URLs to prevent memory leaks
+            if (videoA.src.startsWith('blob:')) {
+                URL.revokeObjectURL(videoA.src);
+            }
+            if (videoB.src.startsWith('blob:')) {
+                URL.revokeObjectURL(videoB.src);
+            }
+        });
+
+        // Storage quota management
+        async function checkStorageQuota() {
+            if ('storage' in navigator && 'estimate' in navigator.storage) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    const usage = estimate.usage || 0;
+                    const quota = estimate.quota || 0;
+                    const percentage = quota > 0 ? (usage / quota * 100).toFixed(1) : 0;
+
+                    console.log(`Storage used: ${cacheManager.formatBytes(usage)} (${percentage}%)`);
+
+                    // Warn if storage is getting full
+                    if (percentage > 80) {
+                        console.warn('Storage quota is getting full. Consider clearing cache.');
+                        cacheManager.updateCacheStatus(`Storage: ${percentage}% full`);
+                    }
+                } catch (error) {
+                    console.log('Storage quota check failed:', error);
+                }
+            }
+        }
+
+        // Check storage quota periodically
+        setInterval(checkStorageQuota, 30000); // Every 30 seconds
+
+        // Proteksi tambahan
+        (function () {
+            'use strict';
+            Object.freeze(loadVideo);
+            Object.freeze(goPrev);
+            Object.freeze(goNext);
+            Object.freeze(videos);
+            for (let i = 0; i < videos.length; i++) {
+                Object.freeze(videos[i]);
+            }
+        })();
+    </script>
+</body>
+
+</html>
