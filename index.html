@@ -135,7 +135,7 @@
         /* Cache status indicator */
         .cache-status {
             position: fixed;
-            top: 60px;
+            top: 20px;
             right: 20px;
             background: rgba(0, 0, 0, 0.7);
             color: white;
@@ -1127,24 +1127,24 @@
         const SWIPE_THRESHOLD = 50;
         const CLICK_THRESHOLD = 5;
 
-        function handleTouchEnd(x) {
-            if (isLoading) return; // Ignore touch during loading
+        // function handleTouchEnd(x) {
+        //     if (isLoading) return; // Ignore touch during loading
 
-            const deltaX = x - startX;
-            if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-                isClick = false;
-                if (deltaX < 0) {
-                    goNext();
-                } else {
-                    goPrev();
-                }
-            }
+        //     const deltaX = x - startX;
+        //     if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+        //         isClick = false;
+        //         if (deltaX < 0) {
+        //             goNext();
+        //         } else {
+        //             goPrev();
+        //         }
+        //     }
 
-            setTimeout(() => {
-                isSwiping = false;
-                isClick = true;
-            }, 100);
-        }
+        //     setTimeout(() => {
+        //         isSwiping = false;
+        //         isClick = true;
+        //     }, 100);
+        // }
 
         videoContainer.addEventListener('touchstart', (e) => {
             if (isLoading) return;
