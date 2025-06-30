@@ -132,32 +132,6 @@
             }
         }
 
-        /* Cache status indicator */
-        .cache-status {
-            position: fixed;
-            top: 60px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .cache-status.cached {
-            background: rgba(76, 175, 80, 0.7);
-            border-color: rgba(76, 175, 80, 0.5);
-        }
-
-        .cache-status.downloading {
-            background: rgba(255, 193, 7, 0.7);
-            border-color: rgba(255, 193, 7, 0.5);
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
         /* Controls */
         .controls {
             position: fixed;
@@ -358,13 +332,6 @@
                 font-size: 12px;
             }
 
-            .cache-status {
-                top: 50px;
-                right: 10px;
-                padding: 4px 8px;
-                font-size: 10px;
-            }
-
             .loading-spinner {
                 width: 50px;
                 height: 50px;
@@ -415,8 +382,9 @@
         <!-- Loading Overlay -->
         <div class="loading-overlay" id="loading-overlay">
             <div style="text-align: center;">
-                <div class="loading-spinner"></div>
-                <div class="loading-text" id="loading-text">Memuat ebook...</div>
+                <!-- <div class="loading-spinner"></div> -->
+                <div class="loading-text" id="loading-text"></div>
+                <!-- <div class="loading-text" id="loading-text">Memuat ebook...</div> -->
                 <div class="loading-progress">
                     <div class="loading-progress-bar" id="loading-progress-bar"></div>
                 </div>
@@ -426,9 +394,6 @@
 
     <!-- Page Indicator -->
     <div class="page-indicator d-none" id="page-indicator">1 / 91</div>
-
-    <!-- Cache Status -->
-    <div class="cache-status" id="cache-status">Cache: Loading...</div>
 
     <!-- Zoom Controls -->
     <div class="zoom-controls auto-hide d-none" id="zoom-controls">
@@ -451,170 +416,9 @@
         <button class="control-btn d-none" id="magnifier-btn" title="Toggle Magnifier">
             🔍 Magnifier
         </button>
-        <button class="control-btn" id="clear-cache-btn" title="Clear Cache">
-            🗑️ Clear Cache
-        </button>
     </div>
 
     <script>
-        // IndexedDB Cache Manager
-        class VideoCacheManager {
-            constructor() {
-                this.dbName = 'PGNFlipbookCache';
-                this.dbVersion = 1;
-                this.storeName = 'videos';
-                this.db = null;
-                this.cacheStatus = document.getElementById('cache-status');
-            }
-
-            async init() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, this.dbVersion);
-
-                    request.onerror = () => {
-                        console.error('IndexedDB error:', request.error);
-                        this.updateCacheStatus('Cache: Error');
-                        reject(request.error);
-                    };
-
-                    request.onsuccess = () => {
-                        this.db = request.result;
-                        console.log('IndexedDB initialized successfully');
-                        this.updateCacheStatus('Cache: Ready');
-                        resolve();
-                    };
-
-                    request.onupgradeneeded = (event) => {
-                        const db = event.target.result;
-                        if (!db.objectStoreNames.contains(this.storeName)) {
-                            const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
-                            store.createIndex('url', 'url', { unique: true });
-                            store.createIndex('timestamp', 'timestamp', { unique: false });
-                        }
-                    };
-                });
-            }
-
-            async getCachedVideo(url) {
-                if (!this.db) return null;
-
-                return new Promise((resolve, reject) => {
-                    const transaction = this.db.transaction([this.storeName], 'readonly');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.get(this.generateId(url));
-
-                    request.onsuccess = () => {
-                        if (request.result) {
-                            console.log('Video found in cache:', url);
-                            resolve(request.result.blob);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-
-                    request.onerror = () => {
-                        console.error('Error getting cached video:', request.error);
-                        resolve(null);
-                    };
-                });
-            }
-
-            async cacheVideo(url, blob) {
-                if (!this.db) return false;
-
-                return new Promise((resolve) => {
-                    const transaction = this.db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
-
-                    const videoData = {
-                        id: this.generateId(url),
-                        url: url,
-                        blob: blob,
-                        timestamp: Date.now(),
-                        size: blob.size
-                    };
-
-                    const request = store.put(videoData);
-
-                    request.onsuccess = () => {
-                        console.log('Video cached successfully:', url);
-                        resolve(true);
-                    };
-
-                    request.onerror = () => {
-                        console.error('Error caching video:', request.error);
-                        resolve(false);
-                    };
-                });
-            }
-
-            async clearCache() {
-                if (!this.db) return false;
-
-                return new Promise((resolve) => {
-                    const transaction = this.db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.clear();
-
-                    request.onsuccess = () => {
-                        console.log('Cache cleared successfully');
-                        this.updateCacheStatus('Cache: Cleared');
-                        resolve(true);
-                    };
-
-                    request.onerror = () => {
-                        console.error('Error clearing cache:', request.error);
-                        resolve(false);
-                    };
-                });
-            }
-
-            async getCacheSize() {
-                if (!this.db) return 0;
-
-                return new Promise((resolve) => {
-                    const transaction = this.db.transaction([this.storeName], 'readonly');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.getAll();
-
-                    request.onsuccess = () => {
-                        const totalSize = request.result.reduce((size, item) => size + (item.size || 0), 0);
-                        resolve(totalSize);
-                    };
-
-                    request.onerror = () => {
-                        resolve(0);
-                    };
-                });
-            }
-
-            generateId(url) {
-                return btoa(url).replace(/[^a-zA-Z0-9]/g, '');
-            }
-
-            updateCacheStatus(status, isCached = false, isDownloading = false) {
-                this.cacheStatus.textContent = status;
-                this.cacheStatus.className = 'cache-status';
-
-                if (isCached) {
-                    this.cacheStatus.classList.add('cached');
-                } else if (isDownloading) {
-                    this.cacheStatus.classList.add('downloading');
-                }
-            }
-
-            formatBytes(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            }
-        }
-
-        // Initialize cache manager
-        const cacheManager = new VideoCacheManager();
-
         const videos = Array.from({ length: 91 }, (_, i) => {
             const slideNum = i + 1;
             return {
@@ -649,67 +453,38 @@
         const nextBtn = document.getElementById('next-btn');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
         const magnifierBtn = document.getElementById('magnifier-btn');
-        const clearCacheBtn = document.getElementById('clear-cache-btn');
         const zoomInBtn = document.getElementById('zoom-in');
         const zoomOutBtn = document.getElementById('zoom-out');
         const zoomResetBtn = document.getElementById('zoom-reset');
 
-        // Enhanced video loading with cache
-        async function loadVideoWithCache(url) {
-            try {
-                // First, try to get from cache
-                const cachedBlob = await cacheManager.getCachedVideo(url);
-
-                if (cachedBlob) {
-                    cacheManager.updateCacheStatus('From Cache', true);
-                    return URL.createObjectURL(cachedBlob);
-                }
-
-                // If not in cache, download and cache it
-                cacheManager.updateCacheStatus('Downloading...', false, true);
-
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const blob = await response.blob();
-
-                // Cache the video
-                await cacheManager.cacheVideo(url, blob);
-                cacheManager.updateCacheStatus('Downloaded & Cached', true);
-
-                return URL.createObjectURL(blob);
-
-            } catch (error) {
-                console.error('Error loading video:', error);
-                cacheManager.updateCacheStatus('Download Error');
-                throw error;
-            }
-        }
+        // Tambahan proteksi
+        Object.defineProperty(document, 'oncontextmenu', {
+            get() { return null; },
+            set() { }
+        });
 
         // Loading functions
         function showLoading(direction = '') {
             if (isLoading) return;
 
             isLoading = true;
-            loadingOverlay.classList.add('show');
-            pageIndicator.classList.add('loading');
+            // loadingOverlay.classList.add('show');
+            // pageIndicator.classList.add('loading');
 
             // Update loading text based on direction
             if (direction === 'prev') {
-                loadingText.textContent = 'Memuat halaman sebelumnya...';
+                // loadingText.textContent = 'Memuat halaman sebelumnya...';
             } else if (direction === 'next') {
-                loadingText.textContent = 'Memuat halaman selanjutnya...';
+                // loadingText.textContent = 'Memuat halaman selanjutnya...';
             } else {
-                loadingText.textContent = 'Memuat ebook...';
+                // loadingText.textContent = 'Memuat ebook...';
             }
 
             // Disable all interactive elements
             disableControls();
 
             // Start progress animation
-            animateProgress();
+            // animateProgress();
         }
 
         function hideLoading() {
@@ -765,60 +540,56 @@
             }, 300);
         }
 
-        async function loadVideo(index, isReverse = false) {
+        function loadVideo(index, isReverse = false) {
             if (isLoading) return; // Prevent multiple loading requests
 
             const direction = isReverse ? 'prev' : 'next';
             showLoading(direction);
 
-            try {
-                const currentVideo = showingA ? videoA : videoB;
-                const nextVideo = showingA ? videoB : videoA;
+            const currentVideo = showingA ? videoA : videoB;
+            const nextVideo = showingA ? videoB : videoA;
 
-                const videoUrl = isReverse ? videos[index].reverse : videos[index].normal;
-                const videoSrc = await loadVideoWithCache(videoUrl);
+            nextVideo.src = isReverse ? videos[index].reverse : videos[index].normal;
 
-                nextVideo.src = videoSrc;
+            // Add error handling
+            nextVideo.onerror = () => {
+                console.error('Error loading video:', nextVideo.src);
+                loadingText.textContent = 'Error memuat ebook. Mencoba lagi...';
 
-                // Add error handling
-                nextVideo.onerror = () => {
-                    console.error('Error playing video:', nextVideo.src);
-                    loadingText.textContent = 'Error memuat ebook. Mencoba lagi...';
-                    cacheManager.updateCacheStatus('Playback Error');
-                    hideLoading();
-                };
+                setTimeout(() => {
+                    nextVideo.load(); // Retry loading
+                }, 1000);
+            };
 
-                nextVideo.onloadstart = () => {
-                    loadingProgressBar.style.width = '60%';
-                };
+            nextVideo.onloadstart = () => {
+                loadingProgressBar.style.width = '20%';
+            };
 
-                nextVideo.oncanplaythrough = () => {
-                    completeProgress();
+            nextVideo.onprogress = () => {
+                if (nextVideo.buffered.length > 0) {
+                    const buffered = nextVideo.buffered.end(0) / nextVideo.duration;
+                    const progress = Math.min(buffered * 100, 95);
+                    loadingProgressBar.style.width = progress + '%';
+                }
+            };
 
-                    setTimeout(() => {
-                        nextVideo.classList.remove('hidden');
-                        nextVideo.play().then(() => {
-                            currentVideo.classList.add('hidden');
-                            // Clean up old object URL
-                            if (currentVideo.src.startsWith('blob:')) {
-                                URL.revokeObjectURL(currentVideo.src);
-                            }
-                            showingA = !showingA;
-                            updatePageIndicator();
-                        }).catch(error => {
-                            console.error('Error playing video:', error);
-                            hideLoading();
-                        });
-                    }, 100);
-                };
+            nextVideo.oncanplaythrough = () => {
+                completeProgress();
 
-                nextVideo.load();
+                setTimeout(() => {
+                    nextVideo.classList.remove('hidden');
+                    nextVideo.play().then(() => {
+                        currentVideo.classList.add('hidden');
+                        showingA = !showingA;
+                        updatePageIndicator();
+                    }).catch(error => {
+                        console.error('Error playing video:', error);
+                        hideLoading();
+                    });
+                }, 100);
+            };
 
-            } catch (error) {
-                console.error('Error loading video:', error);
-                loadingText.textContent = 'Error memuat video';
-                hideLoading();
-            }
+            nextVideo.load();
         }
 
         function goPrev() {
@@ -843,18 +614,6 @@
             if (!isLoading) {
                 prevBtn.disabled = currentIndex === 0;
                 nextBtn.disabled = currentIndex === videos.length - 1;
-            }
-        }
-
-        // Clear cache function
-        async function clearCache() {
-            if (confirm('Hapus semua cache video? Ini akan memerlukan download ulang video.')) {
-                const success = await cacheManager.clearCache();
-                if (success) {
-                    alert('Cache berhasil dihapus');
-                } else {
-                    alert('Gagal menghapus cache');
-                }
             }
         }
 
@@ -959,99 +718,41 @@
             }, 3000);
         }
 
-        // Initialize application
-        async function initializeApp() {
-            try {
-                // Initialize IndexedDB
-                await cacheManager.init();
+        // Initialize
+        showLoading('init');
+        videoA.src = videos[currentIndex].normal;
 
-                // Show cache size
-                const cacheSize = await cacheManager.getCacheSize();
-                if (cacheSize > 0) {
-                    cacheManager.updateCacheStatus(`Cache: ${cacheManager.formatBytes(cacheSize)}`, true);
-                }
+        videoA.oncanplaythrough = () => {
+            completeProgress();
+            setTimeout(() => {
+                videoA.play().then(() => {
+                    updatePageIndicator();
+                    updateButtons();
+                }).catch(error => {
+                    console.error('Error playing initial video:', error);
+                    hideLoading();
+                });
+            }, 100);
+        };
 
-                // Load initial video
-                showLoading('init');
-                const initialVideoSrc = await loadVideoWithCache(videos[currentIndex].normal);
-                videoA.src = initialVideoSrc;
-
-                videoA.oncanplaythrough = () => {
-                    completeProgress();
-                    setTimeout(() => {
-                        videoA.play().then(() => {
-                            updatePageIndicator();
-                            updateButtons();
-                        }).catch(error => {
-                            console.error('Error playing initial video:', error);
-                            hideLoading();
-                        });
-                    }, 100);
-                };
-
-                videoA.onerror = () => {
-                    console.error('Error loading initial video');
-                    loadingText.textContent = 'Error memuat ebook awal';
-                    cacheManager.updateCacheStatus('Initial Load Error');
-                    setTimeout(() => {
-                        hideLoading();
-                    }, 2000);
-                };
-
-                videoA.load();
-
-            } catch (error) {
-                console.error('Failed to initialize app:', error);
-                cacheManager.updateCacheStatus('Initialization Error');
+        videoA.onerror = () => {
+            console.error('Error loading initial video');
+            loadingText.textContent = 'Error memuat ebook awal';
+            setTimeout(() => {
                 hideLoading();
-            }
-        }
-
-        // Preload adjacent videos in background
-        async function preloadAdjacentVideos() {
-            const preloadList = [];
-
-            // Preload next video
-            if (currentIndex < videos.length - 1) {
-                preloadList.push(videos[currentIndex + 1].normal);
-                preloadList.push(videos[currentIndex + 1].reverse);
-            }
-
-            // Preload previous video
-            if (currentIndex > 0) {
-                preloadList.push(videos[currentIndex - 1].normal);
-                preloadList.push(videos[currentIndex - 1].reverse);
-            }
-
-            // Preload in background without showing loading
-            for (const url of preloadList) {
-                try {
-                    const cached = await cacheManager.getCachedVideo(url);
-                    if (!cached) {
-                        // Download and cache in background
-                        fetch(url).then(response => response.blob()).then(blob => {
-                            cacheManager.cacheVideo(url, blob);
-                        }).catch(error => {
-                            console.log('Background preload failed for:', url);
-                        });
-                    }
-                } catch (error) {
-                    console.log('Background preload error:', error);
-                }
-            }
-        }
+            }, 2000);
+        };
 
         // Event listeners
         prevBtn.addEventListener('click', goPrev);
         nextBtn.addEventListener('click', goNext);
         fullscreenBtn.addEventListener('click', toggleFullscreen);
         magnifierBtn.addEventListener('click', toggleMagnifier);
-        clearCacheBtn.addEventListener('click', clearCache);
         zoomInBtn.addEventListener('click', zoomIn);
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
 
-        // Enhanced keyboard navigation
+        // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (isLoading) return; // Ignore keyboard input during loading
 
@@ -1092,14 +793,6 @@
                     toggleMagnifier();
                     showControls();
                     break;
-                case 'c':
-                case 'C':
-                    if (e.ctrlKey || e.metaKey) {
-                        e.preventDefault();
-                        clearCache();
-                        showControls();
-                    }
-                    break;
             }
         });
 
@@ -1120,7 +813,7 @@
             magnifier.style.display = 'none';
         });
 
-        // Enhanced touch events for navigation
+        // Touch events for navigation
         let startX = 0;
         let isSwiping = false;
         let isClick = true;
@@ -1186,73 +879,8 @@
         document.addEventListener('mousemove', showControls);
         document.addEventListener('click', showControls);
 
-        // Page change event for preloading
-        function onPageChange() {
-            updatePageIndicator();
-            updateButtons();
-            // Preload adjacent videos after a short delay
-            setTimeout(() => {
-                if (!isLoading) {
-                    preloadAdjacentVideos();
-                }
-            }, 1000);
-        }
-
-        // Override the original page change functions
-        const originalGoNext = goNext;
-        const originalGoPrev = goPrev;
-
-        goNext = function () {
-            originalGoNext();
-            onPageChange();
-        };
-
-        goPrev = function () {
-            originalGoPrev();
-            onPageChange();
-        };
-
-        // Initialize the application
-        initializeApp();
-
         // Initial controls show
         showControls();
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            // Revoke any object URLs to prevent memory leaks
-            if (videoA.src.startsWith('blob:')) {
-                URL.revokeObjectURL(videoA.src);
-            }
-            if (videoB.src.startsWith('blob:')) {
-                URL.revokeObjectURL(videoB.src);
-            }
-        });
-
-        // Storage quota management
-        async function checkStorageQuota() {
-            if ('storage' in navigator && 'estimate' in navigator.storage) {
-                try {
-                    const estimate = await navigator.storage.estimate();
-                    const usage = estimate.usage || 0;
-                    const quota = estimate.quota || 0;
-                    const percentage = quota > 0 ? (usage / quota * 100).toFixed(1) : 0;
-
-                    console.log(`Storage used: ${cacheManager.formatBytes(usage)} (${percentage}%)`);
-
-                    // Warn if storage is getting full
-                    if (percentage > 80) {
-                        console.warn('Storage quota is getting full. Consider clearing cache.');
-                        cacheManager.updateCacheStatus(`Storage: ${percentage}% full`);
-                    }
-                } catch (error) {
-                    console.log('Storage quota check failed:', error);
-                }
-            }
-        }
-
-        // Check storage quota periodically
-        setInterval(checkStorageQuota, 30000); // Every 30 seconds
 
         // Proteksi tambahan
         (function () {
