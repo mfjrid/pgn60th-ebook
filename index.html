@@ -336,8 +336,13 @@
 
             .control-btn {
                 padding: 8px 12px;
-                font-size: 12px;
+                font-size: 18px;
                 min-width: 70px;
+            }
+
+            .controls button,
+            .control-btn {
+                font-size: 38px !important;
             }
 
             .zoom-controls {
@@ -505,7 +510,7 @@
 
                     request.onsuccess = () => {
                         if (request.result) {
-                            console.log('Video found in cache:', url);
+                            // console.log('Video found in cache:', url);
                             resolve(request.result.blob);
                         } else {
                             resolve(null);
@@ -513,7 +518,7 @@
                     };
 
                     request.onerror = () => {
-                        console.error('Error getting cached video:', request.error);
+                        console.error('Error getting cached slide:', request.error);
                         resolve(null);
                     };
                 });
@@ -537,7 +542,7 @@
                     const request = store.put(videoData);
 
                     request.onsuccess = () => {
-                        console.log('Video cached successfully:', url);
+                        // console.log('Slide cached successfully:', url);
                         resolve(true);
                     };
 
@@ -1162,10 +1167,10 @@
             e.preventDefault();
         });
 
-        videoContainer.addEventListener('touchend', (e) => {
-            if (!isSwiping || isLoading) return;
-            handleTouchEnd(e.changedTouches[0].clientX);
-        });
+        // videoContainer.addEventListener('touchend', (e) => {
+        //     if (!isSwiping || isLoading) return;
+        //     handleTouchEnd(e.changedTouches[0].clientX);
+        // });
 
         // Click areas
         leftClickArea.addEventListener('click', (e) => {
