@@ -436,7 +436,7 @@
     <div class="cache-status" id="cache-status">Cache: Loading...</div>
 
     <!-- Zoom Controls -->
-    <div class="zoom-controls auto-hide d-none" id="zoom-controls">
+    <div class="zoom-controls auto-hide" id="zoom-controls">
         <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
         <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
         <button class="zoom-btn" id="zoom-reset" title="Reset Zoom">⌂</button>
@@ -810,6 +810,7 @@
                             }
                             showingA = !showingA;
                             updatePageIndicator();
+                            applyZoom();
                         }).catch(error => {
                             console.error('Error playing ebook:', error);
                             hideLoading();
@@ -880,8 +881,8 @@
         }
 
         function applyZoom() {
-            const currentVideo = showingA ? videoA : videoB;
-            currentVideo.style.transform = `scale(${zoomLevel})`;
+            videoA.style.transform = `scale(${zoomLevel})`;
+            videoB.style.transform = `scale(${zoomLevel})`;
         }
 
         // Fullscreen function
@@ -987,6 +988,7 @@
                         videoA.play().then(() => {
                             updatePageIndicator();
                             updateButtons();
+                            applyZoom();
                         }).catch(error => {
                             console.error('Error playing initial ebook:', error);
                             hideLoading();
