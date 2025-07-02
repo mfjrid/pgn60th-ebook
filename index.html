@@ -387,6 +387,69 @@
         .d-none {
             display: none !important;
         }
+
+        /* Styling untuk video yang bisa di-drag */
+        video.draggable {
+            cursor: grab !important;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        video.draggable:active {
+            cursor: grabbing !important;
+        }
+
+        /* Smooth transition untuk zoom dan drag */
+        video {
+            transition: transform 0.2s ease-out;
+        }
+
+        /* Disable transition saat sedang dragging untuk responsivitas */
+        video.dragging {
+            transition: none !important;
+        }
+
+        /* Update kontrol untuk menambah tombol reset posisi */
+        .reset-position-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .reset-position-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Indikator drag mode */
+        .drag-indicator {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: rgba(255, 165, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .drag-indicator.show {
+            opacity: 1;
+        }
+
+        /* Mobile optimization */
+        @media (max-width: 768px) {
+            .drag-indicator {
+                top: 60px;
+                right: 10px;
+                font-size: 9px;
+                padding: 3px 6px;
+            }
+        }
     </style>
     <script>
         // Anti Inspect Element
@@ -435,11 +498,14 @@
     <!-- Cache Status -->
     <div class="cache-status" id="cache-status">Cache: Loading...</div>
 
+    <div class="drag-indicator" id="drag-indicator">Drag Mode</div>
+
     <!-- Zoom Controls -->
     <div class="zoom-controls auto-hide" id="zoom-controls">
         <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
         <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
         <button class="zoom-btn" id="zoom-reset" title="Reset Zoom">⌂</button>
+        <button class="zoom-btn reset-position-btn" id="reset-position" title="Reset Position (R)">⌖</button>
     </div>
 
     <!-- Main Controls -->
@@ -658,6 +724,8 @@
         const zoomInBtn = document.getElementById('zoom-in');
         const zoomOutBtn = document.getElementById('zoom-out');
         const zoomResetBtn = document.getElementById('zoom-reset');
+        const resetPositionBtn = document.getElementById('reset-position');
+        const dragIndicator = document.getElementById('drag-indicator');
 
         // Enhanced video loading with cache
         async function loadVideoWithCache(url) {
@@ -877,12 +945,36 @@
 
         function resetZoom() {
             zoomLevel = 1;
+            videoOffsetX = 0;
+            videoOffsetY = 0;
+            lastOffsetX = 0;
+            lastOffsetY = 0;
             applyZoom();
         }
 
         function applyZoom() {
-            videoA.style.transform = `scale(${zoomLevel})`;
-            videoB.style.transform = `scale(${zoomLevel})`;
+            // Terapkan zoom dan posisi ke kedua video
+            const transform = `scale(${zoomLevel}) translate(${videoOffsetX}px, ${videoOffsetY}px)`;
+            videoA.style.transform = transform;
+            videoB.style.transform = transform;
+
+            // Update cursor berdasarkan zoom level
+            const currentVideo = showingA ? videoA : videoB;
+            if (zoomLevel > 1) {
+                currentVideo.style.cursor = isDragging ? 'grabbing' : 'grab';
+            } else {
+                currentVideo.style.cursor = 'default';
+                // Reset posisi jika zoom = 1
+                if (zoomLevel === 1) {
+                    videoOffsetX = 0;
+                    videoOffsetY = 0;
+                    lastOffsetX = 0;
+                    lastOffsetY = 0;
+                }
+            }
+
+            updateResetPositionButton();
+            updateDragIndicator();
         }
 
         // Fullscreen function
@@ -1058,6 +1150,18 @@
         zoomOutBtn.addEventListener('click', zoomOut);
         zoomResetBtn.addEventListener('click', resetZoom);
 
+        // Tambahkan event listener untuk reset position button
+        resetPositionBtn.addEventListener('click', () => {
+            if (zoomLevel > 1) {
+                videoOffsetX = 0;
+                videoOffsetY = 0;
+                lastOffsetX = 0;
+                lastOffsetY = 0;
+                applyZoom();
+                showControls();
+            }
+        });
+
         // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (isLoading) return; // Ignore keyboard input during loading
@@ -1107,6 +1211,25 @@
                         showControls();
                     }
                     break;
+                case 'r':
+                case 'R':
+                    // Reset posisi drag tanpa mengubah zoom
+                    if (zoomLevel > 1) {
+                        e.preventDefault();
+                        videoOffsetX = 0;
+                        videoOffsetY = 0;
+                        lastOffsetX = 0;
+                        lastOffsetY = 0;
+                        applyZoom();
+                        showControls();
+                    }
+                    break;
+                case 'Escape':
+                    // Reset zoom dan posisi
+                    e.preventDefault();
+                    resetZoom();
+                    showControls();
+                    break;
             }
         });
 
@@ -1118,6 +1241,7 @@
         });
 
         videoContainer.addEventListener('mousemove', (e) => {
+            if (isDragging) return;
             if (magnifierEnabled) {
                 updateMagnifier(e);
             }
@@ -1153,13 +1277,29 @@
         //     }, 100);
         // }
 
-        videoContainer.addEventListener('touchstart', (e) => {
+        videoContainer.removeEventListener('touchstart', (e) => {
             if (isLoading) return;
             startX = e.touches[0].clientX;
             isSwiping = true;
             isClick = true;
             showControls();
         });
+
+        videoContainer.addEventListener('touchstart', (e) => {
+            if (isLoading) return;
+
+            // Jika zoom aktif, prioritaskan drag
+            if (zoomLevel > 1) {
+                handleTouchStart(e);
+                return;
+            }
+
+            // Navigation normal jika tidak zoom
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+            isClick = true;
+            showControls();
+        }, { passive: false });
 
         videoContainer.addEventListener('touchmove', (e) => {
             if (!isSwiping || isLoading) return;
@@ -1169,10 +1309,35 @@
             e.preventDefault();
         });
 
+        videoContainer.addEventListener('touchmove', (e) => {
+            // Jika sedang drag, handle drag
+            if (isDragging && zoomLevel > 1) {
+                handleTouchMove(e);
+                return;
+            }
+
+            // Navigation swipe normal
+            if (!isSwiping || isLoading) return;
+            if (Math.abs(e.touches[0].clientX - startX) > CLICK_THRESHOLD) {
+                isClick = false;
+            }
+            e.preventDefault();
+        }, { passive: false });
+
         // videoContainer.addEventListener('touchend', (e) => {
         //     if (!isSwiping || isLoading) return;
         //     handleTouchEnd(e.changedTouches[0].clientX);
         // });
+
+        // Tambahkan event listeners ke video container
+        videoContainer.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // Event listeners untuk touch
+        videoContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+        videoContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+        videoContainer.addEventListener('touchend', handleTouchEnd);
 
         // Click areas
         leftClickArea.addEventListener('click', (e) => {
@@ -1260,6 +1425,172 @@
 
         // Check storage quota periodically
         setInterval(checkStorageQuota, 30000); // Every 30 seconds
+
+        // Variabel untuk drag functionality
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let videoOffsetX = 0;
+        let videoOffsetY = 0;
+        let lastOffsetX = 0;
+        let lastOffsetY = 0;
+
+        // Fungsi untuk menghitung batas drag
+        function calculateDragLimits() {
+            const currentVideo = showingA ? videoA : videoB;
+            const videoRect = currentVideo.getBoundingClientRect();
+            const containerRect = videoContainer.getBoundingClientRect();
+
+            // Hitung ukuran video yang dizoom
+            const scaledWidth = videoRect.width * zoomLevel;
+            const scaledHeight = videoRect.height * zoomLevel;
+
+            // Hitung batas maksimum drag
+            const maxDragX = Math.max(0, (scaledWidth - containerRect.width) / 2);
+            const maxDragY = Math.max(0, (scaledHeight - containerRect.height) / 2);
+
+            return { maxDragX, maxDragY };
+        }
+
+        // Fungsi untuk membatasi posisi drag
+        function constrainDragPosition(x, y) {
+            const { maxDragX, maxDragY } = calculateDragLimits();
+
+            return {
+                x: Math.max(-maxDragX, Math.min(maxDragX, x)),
+                y: Math.max(-maxDragY, Math.min(maxDragY, y))
+            };
+        }
+
+        // Event listeners untuk mouse drag
+        function handleMouseDown(e) {
+            if (zoomLevel <= 1) return;
+
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            lastOffsetX = videoOffsetX;
+            lastOffsetY = videoOffsetY;
+
+            applyZoom();
+            e.preventDefault();
+        }
+
+        function handleMouseMove(e) {
+            if (!isDragging || zoomLevel <= 1) return;
+
+            const deltaX = e.clientX - dragStartX;
+            const deltaY = e.clientY - dragStartY;
+
+            const newPosition = constrainDragPosition(
+                lastOffsetX + deltaX,
+                lastOffsetY + deltaY
+            );
+
+            videoOffsetX = newPosition.x;
+            videoOffsetY = newPosition.y;
+
+            applyZoom();
+            e.preventDefault();
+        }
+
+        function handleMouseUp(e) {
+            if (isDragging) {
+                isDragging = false;
+                applyZoom();
+            }
+        }
+
+        // Event listeners untuk touch drag (mobile)
+        function handleTouchStart(e) {
+            if (zoomLevel <= 1) return;
+
+            // Jika ada lebih dari 1 touch, abaikan (untuk pinch zoom di masa depan)
+            if (e.touches.length !== 1) return;
+
+            isDragging = true;
+            const touch = e.touches[0];
+            dragStartX = touch.clientX;
+            dragStartY = touch.clientY;
+            lastOffsetX = videoOffsetX;
+            lastOffsetY = videoOffsetY;
+
+            applyZoom();
+
+            // Cegah navigasi slide saat dragging
+            isSwiping = false;
+            isClick = false;
+        }
+
+        function handleTouchMove(e) {
+            if (!isDragging || zoomLevel <= 1) return;
+
+            if (e.touches.length !== 1) return;
+
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - dragStartX;
+            const deltaY = touch.clientY - dragStartY;
+
+            const newPosition = constrainDragPosition(
+                lastOffsetX + deltaX,
+                lastOffsetY + deltaY
+            );
+
+            videoOffsetX = newPosition.x;
+            videoOffsetY = newPosition.y;
+
+            applyZoom();
+
+            // Cegah scroll dan navigasi slide
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleTouchEnd(e) {
+            if (isDragging) {
+                isDragging = false;
+                applyZoom();
+
+                // Reset flag untuk navigasi slide setelah delay singkat
+                setTimeout(() => {
+                    isSwiping = false;
+                    isClick = true;
+                }, 100);
+            }
+        }
+
+        // Cegah context menu saat drag
+        videoContainer.addEventListener('contextmenu', (e) => {
+            if (isDragging || zoomLevel > 1) {
+                e.preventDefault();
+            }
+        });
+
+        // Tambahkan indikator visual untuk drag mode
+        function updateDragIndicator() {
+            const currentVideo = showingA ? videoA : videoB;
+
+            if (zoomLevel > 1) {
+                currentVideo.style.cursor = isDragging ? 'grabbing' : 'grab';
+                currentVideo.classList.add('draggable');
+                dragIndicator.classList.add('show');
+            } else {
+                currentVideo.style.cursor = 'default';
+                currentVideo.classList.remove('draggable');
+                dragIndicator.classList.remove('show');
+            }
+        }
+
+        // Tambahkan juga fungsi untuk update visibility button reset position
+        function updateResetPositionButton() {
+            if (zoomLevel > 1 && (videoOffsetX !== 0 || videoOffsetY !== 0)) {
+                resetPositionBtn.style.opacity = '1';
+                resetPositionBtn.disabled = false;
+            } else {
+                resetPositionBtn.style.opacity = '0.5';
+                resetPositionBtn.disabled = true;
+            }
+        }
 
         // Proteksi tambahan
         (function () {
