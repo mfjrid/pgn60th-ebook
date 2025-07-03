@@ -18,6 +18,37 @@
             user-select: none;
         }
 
+        #preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #preloader-logo {
+            width: auto;
+            height: 150px;
+            animation: blink 1.5s infinite ease-in-out;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
         #video-container {
             position: relative;
             width: 100vw;
@@ -33,6 +64,14 @@
             max-height: 100%;
             object-fit: contain;
             transition: transform 0.3s ease;
+        }
+
+        .video-fixed-size {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 1920px !important;
+            max-height: 1080px !important;
+            object-fit: contain !important;
         }
 
         .hidden {
@@ -471,10 +510,14 @@
 </head>
 
 <body>
+    <div id="preloader">
+        <img id="preloader-logo" src="assets/img/logo.png" alt="Loading...">
+    </div>
+
     <div id="video-container">
         <div class="click-area left-click-area"></div>
-        <video id="videoA" autoplay muted playsinline></video>
-        <video id="videoB" autoplay muted playsinline class="hidden"></video>
+        <video id="videoA" autoplay muted playsinline class="video-fixed-size"></video>
+        <video id="videoB" autoplay muted playsinline class="hidden video-fixed-size"></video>
         <div class="click-area right-click-area"></div>
         <div class="magnifier" id="magnifier">
             <div class="magnifier-content" id="magnifier-content"></div>
@@ -526,6 +569,21 @@
             🗑️ Clear Cache
         </button>
     </div>
+
+    <script>
+        // Preloader functionality
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                const preloader = document.getElementById('preloader');
+                preloader.style.opacity = '0';
+                preloader.style.transition = 'opacity 0.5s ease';
+
+                setTimeout(function () {
+                    preloader.style.display = 'none';
+                }, 500);
+            }, 2000);
+        });
+    </script>
 
     <script>
         // IndexedDB Cache Manager
